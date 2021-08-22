@@ -4,7 +4,6 @@
 /** Add optional MQTT user name and password in lines 55 and 87 **/
 /** Add optional MQTT port# in line 74 **/
 /*******************/
-#include <SoftwareSerial.h> //this is espSoftwareSerial, not Arduino SoftwareSerial
 #include <WiFiServerSecure.h>
 #include <WiFiClientSecure.h>
 #include <ESP8266WiFi.h>
@@ -14,23 +13,24 @@
 #include <WiFiServer.h>
 #include <WiFiServerSecure.h>
 #include <PubSubClient.h>
+#include <SoftwareSerial.h>
 
 #undef OUTPUT_LOCAL
 
 // RX, TX
 // GPIO14 = D5, GPIO12 = D6
 // GPIO13 = D7, GPIO15 = D8
-#define RX_PIN 13
-#define TX_PIN 15
+#define RX_PIN RX
+#define TX_PIN TX
 
-SoftwareSerial waterSerial;
+SoftwareSerial waterSerial(RX_PIN, TX_PIN);
 
 // Change the credentials below, so your ESP8266 connects to your router
 const char *ssid = "xxx";
 const char *password = "xxx";
 
 // Change the variable to your Raspberry Pi IP address, so it connects to your MQTT broker
-const char *mqtt_server = "192.168.1.50";
+const char *mqtt_server = "192.168.1.x";
 
 // Initializes the espClient. You should change the espClient name if you have multiple ESPs running in your home automation system
 WiFiClient espwateringClient;
@@ -41,18 +41,11 @@ void setup_wifi()
 {
     delay(10);
     // We start by connecting to a WiFi network
-    Serial.println();
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
-        Serial.print(".");
     }
-    Serial.println("");
-    Serial.print("WiFi connected - ESP IP address: ");
-    Serial.println(WiFi.localIP());
 }
 
 // This functions reconnects your ESP8266 to your MQTT broker
@@ -62,20 +55,13 @@ void reconnect()
     // Loop until we're reconnected
     while (!client.connected())
     {
-         Serial.print("Attempting MQTT connection...");
         // Attempt to connect
         if (client.connect("espWateringClient"))
         {
-            Serial.println("connected");
-            // Subscribe or resubscribe to a topic
-            // client.subscribe("Enable_Pump");
             client.publish("home/watering-1/online", "1");
         }
         else
         {
-            Serial.print("failed, rc=");
-            Serial.print(client.state());
-            Serial.println(" try again in 5 seconds");
             // Wait 5 seconds before retrying
             delay(5000);
         }
@@ -85,16 +71,15 @@ void reconnect()
 void setup()
 {
     Serial.begin(19200);
-    waterSerial.begin(19200, SWSERIAL_8N1, RX_PIN, TX_PIN, false);
+    waterSerial.begin(19200);
     
     setup_wifi();
     client.setServer(mqtt_server, 1883);
-    //client.setCallback(callback);
 }
 
 void loop()
 {
-    char waterData[80]; // max line length is one less than this
+    char waterData[255]; // max line length is one less than this
 
     if (!client.connected())
     {
@@ -116,10 +101,9 @@ void loop()
     static char waterLevel[5];
 
     //  get data from serial line
-
     if (read_line(waterData, sizeof(waterData)) < 0)
     {
-        Serial.println("Error: line too long");
+        client.publish("home/watering-1/error", "line too long");
         return; // skip command processing and try again on next iteration of loop
     }
 
@@ -147,23 +131,6 @@ void loop()
     fourthValue.toCharArray(read_A3, 5);
     fifthValue.toCharArray(read_pump_status, 2);
     sixthValue.toCharArray(waterLevel, 5);
-
-#ifdef OUTPUT_LOCAL
-    Serial.println("Readings:");
-    Serial.print("A0: ");
-    Serial.println(firstValue);
-    Serial.print("A1: ");
-    Serial.println(secondValue);
-    Serial.print("A2: ");
-    Serial.println(thirdValue);
-    Serial.print("A3: ");
-    Serial.println(fourthValue);
-    Serial.print("Pump Running: ");
-    Serial.println(fifthValue);
-    Serial.print("Water Level: ");
-    Serial.println(sixthValue);
-    Serial.println();
-#endif
 
     //publish to mqtt
     client.publish("home/watering-1/moisture-0", read_A0);
