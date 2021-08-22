@@ -11,10 +11,27 @@ I found a [version of the firmware](https://github.com/liutyi/elecrow-watering-k
 modified by [liutyi](https://wiki.liutyi.info/display/ARDUINO/Arduino+Automatic+Smart+Plant+Watering+Kit+2.0a) 
 that fixed these gitches. 
 
-As I plan on expanding upon this code, I've refactored the code so it doesn't repeat itself four times every time it does something.
+Changes to my code
+* Formatting and variable names made more consistent
+* This supports the VL53L0X Time-of-Flight (ToF) Laser Ranging Sensor I2C IIC module.
+* Sensor data is sent over TX to an ESP8266 (if available) running the `esp8266-app/esp8266-app.ino`. I use a D1 Mini (clone) for this
+* The ESP8266 I connect VCC and GND from ... and I connect RX on the Elecrow (which is mis-labeled) to RX on the D1 Mini.
+* This will preclude you from using the Serial monitor on the D1 Mini. I do not think there is a way around this. Since I am using the RX pin, I do not believe you need to use a level shifter (since it has a resistor in-place).
+* Code on the ESP8266 connects to a Local Mosquitto. From there you need to get the data wherever makes sense
+* My code assumes you have your Serial consoles set to 19200.
 
-TODO
----------
-* Support a depth sensor for the water. I plan to add support for the VL53L0X Time-of-Flight (ToF) Laser Ranging Sensor I2C IIC module.
-* Supply sensor and pump data over RX/TX to an ESP32 or ESP8266.
-* Code on the ESP32/ESP8266 to read the sensor data and publish it to a local MQTT (Mosquitto) broker so I can use Grafana to visualize
+Programming notes
+* I found programming this Leonardo to bit a bit of a pain.
+* On Windows, the Leonardo consumes two COM ports, let's say they are COM5 and COM6
+* COM5 is for the Serial Monitor, when running a program. 
+* COM6 is for programming.
+* To program, my recommendation
+  * Make sure Show Verbose Output on "Upload" is selected. This is helpful!!
+  * Click "Compile"
+  * Make sure COM6 is selected (if not listed, press and hold the RESET button on the Elecrow)
+  * Click and hold the reset button
+    * Click "Send"
+    * Wait for the build to ALMOST finish and let go of RESET
+    * When you start getting messages listing all of the COM ports, press RESET again (don't hold)
+    * Programming should start (and complete)
+* To view the Serial console, first switch to COM5 (re-open the Serial Monitor, if necessary)

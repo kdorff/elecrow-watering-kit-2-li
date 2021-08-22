@@ -3,32 +3,34 @@
 #include <U8x8lib.h>
 #include <RTClib.h>
 #include <VL53L0X.h>
-#include <Adafruit_SleepyDog.h>
 
 U8G2_SH1106_128X64_NONAME_2_HW_I2C u8g2(U8G2_R0, /* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE);
 RTC_DS1307 RTC;
 
-#define MAX_WATER_DEPTH 304
+// Moisture levels to start and stop watering
 #define WATER_START_VALUE 30
 #define WATER_STOP_VALUE 55
-#define WATER_LEVEL_TIMEOUT 65535
+
+// Depth of water reservoir
+#define MAX_WATER_DEPTH 304
+
+// Rougly how long in MS between outputting stats (15s)
+#define SEND_STATS_FREQ_MS 15*1000
 
 // Should stats be published to MQTT?
 // This assumes there is an ESP8266 connect to TX/RX
 // running an app that will publish when receiving
 // the data in the expected format.
-// Published about once a minute.
 #define SEND_STATS_MQTT
+
 // Output stats to Serial.
-// Output about once a minute.
 #define SEND_STATS_LOCAL
 
-// How often to send stats. 470 = approx 1 minute
-#define SEND_STATS_FREQ 100
+// Time (millis()) we last sent stats
+unsigned long send_stats_last = 0;
 
-// counter for output frequency to ESP
-// Set to report immediately upon startup
-int send_stats_counter = SEND_STATS_FREQ;
+// The value returned by the TOF sensors when a timout occurs
+#define WATER_LEVEL_TIMEOUT 65535
 
 // The number of sensors. If you want more, you will need
 // to many of the below arrays, too.
@@ -144,7 +146,7 @@ void setup()
   RTC.begin();
 
   Serial.begin(19200);
-
+  
 #ifdef SEND_STATS_MQTT
   // Serial to ESP8266. Use RX & TX pins of Elecrow relay board
   Serial1.begin(19200);
@@ -211,7 +213,7 @@ void loop()
     } while (u8g2.nextPage());
     delay(500);
   }
-  Watchdog.sleep(1000);
+  delay(500);
 }
 
 //Set moisture value
@@ -344,7 +346,7 @@ void check_water_level()
         water_level_mm = MAX_WATER_DEPTH;
       }
       water_level_mm = MAX_WATER_DEPTH - water_level_mm;
-      water_level_per = (uint16_t)(water_level_mm / MAX_WATER_DEPTH);
+      water_level_per = (uint16_t) ((double) water_level_mm / (double) MAX_WATER_DEPTH);
     }
   }
 }
@@ -352,9 +354,11 @@ void check_water_level()
 void send_stats()
 {
   //output frequency to ESP
-  if (send_stats_counter >= SEND_STATS_FREQ)
+  unsigned long now = millis();
+  if (now - send_stats_last > SEND_STATS_FREQ_MS)
   {
-    send_stats_counter = 0;
+    send_stats_last = now;
+    Serial.println("Sendings stats\n");
     static char output_buffer[5];
 
     for (int i = 0; i < num_sensors; i++)
@@ -393,8 +397,6 @@ void send_stats()
     delay(50);
 #endif
   }
-
-  send_stats_counter++;
 }
 
 void draw_stats(void)
