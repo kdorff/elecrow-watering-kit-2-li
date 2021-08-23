@@ -1,0 +1,10 @@
+#define WIFI_SSID "Your Wifi SSID"
+#define WIFI_PASSWORD "Your wifi password"
+#define MQTT_HOST "ip address or hostname for your mqtt broker"
+
+#define MQTT_CLIENT_NAME "watering-client-1"
+#define MQTT_ONLINE_TOPIC "home/watering-1/online"
+#define MQTT_LOOP_TOPIC "home/watering-1/loop"
+#define MQTT_ERROR_TOPIC "home/watering-1/error"
+#define MQTT_DATA_TOPIC "home/watering-1/data"
+

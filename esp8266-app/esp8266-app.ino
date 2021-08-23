@@ -1,9 +1,13 @@
-/*******************/
-/** Add your wifi network name and password in lines 20 and 21 **/
-/** Add your IP address in line 25 **/
-/** Add optional MQTT user name and password in lines 55 and 87 **/
-/** Add optional MQTT port# in line 74 **/
-/*******************/
+/**************************************************
+ * Add your Wifi detils and other local config in local-config.h
+ * (See local-config.h-sample).
+ * Review #defines and variables at the top of this file.
+ * 
+ * This code assumes anonymous MQTT access. Change accordingly.
+ * 
+ * This code has been tested with an ESP8266 D1 Mini Clone. 
+ * Make sure to set your Board and Port appropriatly.
+ **************************************************/
 #include <WiFiServerSecure.h>
 #include <WiFiClientSecure.h>
 #include <ESP8266WiFi.h>
@@ -15,33 +19,34 @@
 #include <PubSubClient.h>
 #include <SoftwareSerial.h>
 
-#undef OUTPUT_LOCAL
+// Review all of the values found here.
+// See local-config.h-sample
+#include "local-config.h"
 
-// RX, TX
-// GPIO14 = D5, GPIO12 = D6
-// GPIO13 = D7, GPIO15 = D8
+// The pins to use (we're only actually using RX at this time)
 #define RX_PIN RX
 #define TX_PIN TX
 
 SoftwareSerial waterSerial(RX_PIN, TX_PIN);
 
 // Change the credentials below, so your ESP8266 connects to your router
-const char *ssid = "xxx";
-const char *password = "xxx";
+// Values in local-config.h
+const char *mqtt_server = MQTT_HOST;
 
-// Change the variable to your Raspberry Pi IP address, so it connects to your MQTT broker
-const char *mqtt_server = "192.168.1.x";
-
-// Initializes the espClient. You should change the espClient name if you have multiple ESPs running in your home automation system
+// Initializes the espClient. You should change the espClient
+// name if you have multiple ESPs running in your home automation system
 WiFiClient espwateringClient;
 PubSubClient client(espwateringClient);
+
+// Current loop number. Should always increase as we loop()
+unsigned long loop_num = 0;
 
 // Don't change the function below. This functions connects your ESP8266 to your router
 void setup_wifi()
 {
     delay(10);
     // We start by connecting to a WiFi network
-    WiFi.begin(ssid, password);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
@@ -56,9 +61,9 @@ void reconnect()
     while (!client.connected())
     {
         // Attempt to connect
-        if (client.connect("espWateringClient"))
+        if (client.connect(MQTT_CLIENT_NAME))
         {
-            client.publish("home/watering-1/online", "1");
+            client.publish(MQTT_ONLINE_TOPIC, "1");
         }
         else
         {
@@ -70,11 +75,15 @@ void reconnect()
 
 void setup()
 {
+    //
+    // NOTE: It doesn't seem the ESP8266 can receive data
+    // NOTE: on TX _and_ support the Serial monitor.
+    //
     Serial.begin(19200);
     waterSerial.begin(19200);
     
     setup_wifi();
-    client.setServer(mqtt_server, 1883);
+    client.setServer(MQTT_HOST, 1883);
 }
 
 void loop()
@@ -88,58 +97,32 @@ void loop()
 
     if (!client.loop())
     {
-        client.connect("espWateringClient");
-        client.publish("home/watering-1/online", "2");
+        client.connect(MQTT_CLIENT_NAME);
+        client.publish(MQTT_ONLINE_TOPIC, "2");
     }
 
-    //where to store the data
-    static char read_A0[5];
-    static char read_A1[5];
-    static char read_A2[5];
-    static char read_A3[5];
-    static char read_pump_status[2];
-    static char waterLevel[5];
+    // Publish the loop # for the esp8266-app, verifies
+    // the app doesn't restart, etc. mostly for debugging.
+    static char output_buffer[10];
+
+    // Debugging, publish the loop number
+    // dtostrf(loop_num++, 9, 0, output_buffer);
+    // client.publish(MQTT_LOOP_TOPIC, output_buffer);
 
     //  get data from serial line
     if (read_line(waterData, sizeof(waterData)) < 0)
     {
-        client.publish("home/watering-1/error", "line too long");
+        client.publish(MQTT_ERROR_TOPIC, "line too long");
         return; // skip command processing and try again on next iteration of loop
     }
-
-    String myString = waterData; //change type from char to string
-                                 //String myPumpString(pumpEnable_Disable);
-
-    // This parses comma delimited string into substring
-    int Index1 = myString.indexOf(',');
-    int Index2 = myString.indexOf(',', Index1 + 1);
-    int Index3 = myString.indexOf(',', Index2 + 1);
-    int Index4 = myString.indexOf(',', Index3 + 1);
-    int Index5 = myString.indexOf(',', Index4 + 1);
-    int Index6 = myString.indexOf(',', Index5 + 1);
-
-    String firstValue = myString.substring(0, Index1);
-    String secondValue = myString.substring(Index1 + 1, Index2);
-    String thirdValue = myString.substring(Index2 + 1, Index3);
-    String fourthValue = myString.substring(Index3 + 1, Index4);
-    String fifthValue = myString.substring(Index4 + 1, Index5);
-    String sixthValue = myString.substring(Index5 + 1, Index6);
-
-    firstValue.toCharArray(read_A0, 5); //convert back to 'char' for PubSub
-    secondValue.toCharArray(read_A1, 5);
-    thirdValue.toCharArray(read_A2, 5);
-    fourthValue.toCharArray(read_A3, 5);
-    fifthValue.toCharArray(read_pump_status, 2);
-    sixthValue.toCharArray(waterLevel, 5);
-
-    //publish to mqtt
-    client.publish("home/watering-1/moisture-0", read_A0);
-    client.publish("home/watering-1/moisture-1", read_A1);
-    client.publish("home/watering-1/moisture-2", read_A2);
-    client.publish("home/watering-1/moisture-3", read_A3);
-    client.publish("home/watering-1/pump-0", read_pump_status);
-    client.publish("home/watering-1/water-level-0", waterLevel);
-    delay(100);
+    if (strlen(waterData) > 0) {
+      // We'll process the data in Node-Red
+      if (waterData[0] != '#') {
+        // Don't publish if starts with '#'
+        client.publish(MQTT_DATA_TOPIC, (const char *) &waterData);
+        delay(100);
+      }
+    }
 }
 
 int read_line(char *buffer, int bufsize)

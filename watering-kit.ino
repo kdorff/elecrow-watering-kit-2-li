@@ -1,3 +1,13 @@
+/**************************************************
+ * This code has been tested with the Elecrow
+ * watering kit that has an integrated 
+ * Arduino Leonardo.
+ * 
+ * Make sure to set your Board and Port 
+ * appropriatly. See the README.md for programming
+ * notes.
+ **************************************************/
+
 #include <Wire.h>
 #include <U8g2lib.h>
 #include <U8x8lib.h>
@@ -14,8 +24,9 @@ RTC_DS1307 RTC;
 // Depth of water reservoir
 #define MAX_WATER_DEPTH 304
 
-// Rougly how long in MS between outputting stats (15s)
-#define SEND_STATS_FREQ_MS 15*1000
+// Rougly how long in MS between publishing stats (20s)
+// Note it will also publish when a vavle or pump change state.
+#define SEND_STATS_FREQ_MS 20*1000
 
 // Should stats be published to MQTT?
 // This assumes there is an ESP8266 connect to TX/RX
@@ -28,6 +39,9 @@ RTC_DS1307 RTC;
 
 // Time (millis()) we last sent stats
 unsigned long send_stats_last = 0;
+
+// If we want to force sending stats on this iteration
+bool send_stats_force = false;
 
 // The value returned by the TOF sensors when a timout occurs
 #define WATER_LEVEL_TIMEOUT 65535
@@ -42,8 +56,8 @@ int pump_pin = 4;
 // set button
 int button_pin = 12;
 
-// set water relays
-int relay_pins[] = {6, 8, 9, 10};
+// set water valve pins
+int valve_pins[] = {6, 8, 9, 10};
 
 // set all moisture sensors PIN ID
 int moisture_pins[] = {A0, A1, A2, A3};
@@ -51,8 +65,8 @@ int moisture_pins[] = {A0, A1, A2, A3};
 // declare moisture values
 int moisture_values[] = {0, 0, 0, 0};
 
-//relay states    1:open   0:close
-int relay_state_flags[] = {0, 0, 0, 0};
+// valve states    1:open   0:close
+int valve_state_flags[] = {0, 0, 0, 0};
 
 //pump state    1:open   0:close
 int pump_state_flag = 0;
@@ -61,6 +75,7 @@ int pump_state_flag = 0;
 bool water_level_enabled = false;
 VL53L0X water_level_sensor;
 uint16_t water_level_per = 0;
+uint16_t water_level_mm = 0;
 
 char days_of_the_week[7][12] = {
     "Sun",
@@ -148,16 +163,16 @@ void setup()
   Serial.begin(19200);
   
 #ifdef SEND_STATS_MQTT
-  // Serial to ESP8266. Use RX & TX pins of Elecrow relay board
+  // Serial to ESP8266. Use RX & TX pins of Elecrow watering board
   Serial1.begin(19200);
   Serial.println("Started Serial1 for esp8266");
 #endif
 
   u8g2.begin();
-  // declare relay as output
+  // declare valve relay pins as output
   for (int i = 0; i < num_sensors; i++)
   {
-    pinMode(relay_pins[i], OUTPUT);
+    pinMode(valve_pins[i], OUTPUT);
   }
   // declare pump as output
   pinMode(pump_pin, OUTPUT);
@@ -190,8 +205,8 @@ void loop()
   // read the value from the moisture sensors:
   read_value();
   check_water_level();
-  send_stats();
   water_flower();
+  send_stats();
   int button_state = digitalRead(button_pin);
   if (button_state == 1)
   {
@@ -208,7 +223,7 @@ void loop()
     u8g2.firstPage();
     do
     {
-      drawtime();
+      draw_time();
       u8g2.drawStr(18, 55, "www.elecrow.com");
     } while (u8g2.nextPage());
     delay(500);
@@ -243,8 +258,9 @@ void water_flower()
   {
     if (moisture_values[i] < WATER_START_VALUE)
     {
-      digitalWrite(relay_pins[i], HIGH);
-      relay_state_flags[i] = 1;
+      digitalWrite(valve_pins[i], HIGH);
+      valve_state_flags[i] = 1;
+      send_stats_force = true;
       delay(50);
       if (pump_state_flag == 0)
       {
@@ -255,19 +271,24 @@ void water_flower()
     }
     else if (moisture_values[i] > WATER_STOP_VALUE)
     {
-      digitalWrite(relay_pins[i], LOW);
-      relay_state_flags[i] = 0;
+      if (valve_state_flags[i] == 1) {
+        // Only report if it IS on
+        send_stats_force = true;
+      }
+      // Force it off
+      digitalWrite(valve_pins[i], LOW);
+      valve_state_flags[i] = 0;
       delay(50);
     }
   }
 
-  // If no more active relays, shut down the pump.
-  int num_active_relays = 0;
+  // If no more active valves, shut down the pump.
+  int num_active_valves = 0;
   for (int i = 0; i < num_sensors; i++)
   {
-    num_active_relays += (relay_state_flags[i] > 0) ? 1 : 0;
+    num_active_valves += (valve_state_flags[i] > 0) ? 1 : 0;
   }
-  if (num_active_relays == 0)
+  if (num_active_valves == 0)
   {
     digitalWrite(pump_pin, LOW);
     pump_state_flag = 0;
@@ -275,14 +296,14 @@ void water_flower()
   }
 }
 
-void draw_ad(void)
+void draw_ad()
 {
   u8g2.setFont(u8g2_font_profont12_tr);
   u8g2.drawStr(5, 55, "www.elecrow.com");
   u8g2.drawXBMP(0, 0, 120, 34, bitmap_logo);
 }
 
-void drawtime(void)
+void draw_time()
 {
   int x = 5;
   float i = 25.00;
@@ -313,7 +334,7 @@ void drawtime(void)
 }
 
 //Style the flowers     bitmap_bad: bad flowers     bitmap_good:good  flowers
-void draw_flower(void)
+void draw_flower()
 {
   for (int i = 0; i < num_sensors; i++)
   {
@@ -333,7 +354,7 @@ void check_water_level()
   if (water_level_enabled)
   {
     // This will return WATER_LEVEL_TIMEOUT if a timeout happens.
-    uint16_t water_level_mm = water_level_sensor.readRangeSingleMillimeters();
+    water_level_mm = water_level_sensor.readRangeSingleMillimeters();
     if (water_level_mm == WATER_LEVEL_TIMEOUT)
     {
       //Timeout reading the water level
@@ -346,60 +367,110 @@ void check_water_level()
         water_level_mm = MAX_WATER_DEPTH;
       }
       water_level_mm = MAX_WATER_DEPTH - water_level_mm;
-      water_level_per = (uint16_t) ((double) water_level_mm / (double) MAX_WATER_DEPTH);
+      water_level_per = (uint16_t) (((double) water_level_mm / (double) MAX_WATER_DEPTH) * 100);
     }
   }
 }
 
 void send_stats()
 {
-  //output frequency to ESP
   unsigned long now = millis();
-  if (now - send_stats_last > SEND_STATS_FREQ_MS)
+  unsigned long millisSinceLastRun = now - send_stats_last;
+  static char output_buffer[10];
+  
+#ifdef SEND_STATS_MQTT
+  // This seems to keep the link alive. Hmmm.
+  dtostrf(millisSinceLastRun, 9, 0, output_buffer);
+  Serial1.print("#Millis since last run ");
+  Serial1.print(millisSinceLastRun);
+  Serial1.print("\n");
+#endif
+
+  if (millisSinceLastRun > SEND_STATS_FREQ_MS) {
+    send_stats_force = true;
+  }
+  if (send_stats_force)
   {
     send_stats_last = now;
+    send_stats_force = false;
     Serial.println("Sendings stats\n");
-    static char output_buffer[5];
+    
 
     for (int i = 0; i < num_sensors; i++)
     {
       /*********Output Moisture Sensor values to ESP8266******/
       dtostrf(moisture_values[i], 4, 0, output_buffer);
 #ifdef SEND_STATS_MQTT
+      if (i != 0) {
+        Serial1.print(",");
+      }
       Serial1.print(output_buffer);
-      Serial1.print(",");
 #endif
 #ifdef SEND_STATS_LOCAL
+      if (i != 0) {
+        Serial.print(",");
+      }
       Serial.print(output_buffer);
-      Serial.print(",");
 #endif
     }
 
     dtostrf(pump_state_flag, 1, 0, output_buffer);
 #ifdef SEND_STATS_MQTT
-    Serial1.print(output_buffer);
     Serial1.print(",");
+    Serial1.print(output_buffer);
 #endif
 #ifdef SEND_STATS_LOCAL
-    Serial.print(output_buffer);
     Serial.print(",");
+    Serial.print(output_buffer);
+#endif
+
+    dtostrf(water_level_mm, 4, 0, output_buffer);
+#ifdef SEND_STATS_MQTT
+    Serial1.print(",");
+    Serial1.print(output_buffer);
+#endif
+#ifdef SEND_STATS_LOCAL
+    Serial.print(",");
+    Serial.print(output_buffer);
 #endif
 
     dtostrf(water_level_per, 4, 0, output_buffer);
 #ifdef SEND_STATS_MQTT
+    Serial1.print(",");
     Serial1.print(output_buffer);
+#endif
+#ifdef SEND_STATS_LOCAL
+    Serial.print(",");
+    Serial.print(output_buffer);
+#endif
+
+    for (int i = 0; i < num_sensors; i++)
+    {
+      /*********Output Moisture Sensor values to ESP8266******/
+      dtostrf(valve_state_flags[i], 1, 0, output_buffer);
+#ifdef SEND_STATS_MQTT
+      Serial1.print(",");
+      Serial1.print(output_buffer);
+#endif
+#ifdef SEND_STATS_LOCAL
+      Serial.print(",");
+      Serial.print(output_buffer);
+#endif
+    }
+
+    // End the message.
+#ifdef SEND_STATS_MQTT
     Serial1.print("\n");
     delay(100);
 #endif
 #ifdef SEND_STATS_LOCAL
-    Serial.print(output_buffer);
     Serial.print("\n");
     delay(50);
 #endif
   }
 }
 
-void draw_stats(void)
+void draw_stats()
 {
   int x_offsets[] = {0, 32, 64, 96};
   char display_buffer[5] = {0};
