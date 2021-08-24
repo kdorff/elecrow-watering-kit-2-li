@@ -1,1 +1,2 @@
-local-config.h
+esp8266-app-config.h
+watering-kit-config.h

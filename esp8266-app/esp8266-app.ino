@@ -1,6 +1,6 @@
 /**************************************************
- * Add your Wifi detils and other local config in local-config.h
- * (See local-config.h-sample).
+ * Add your Wifi detils and other config in esp8266-app-config.h
+ * (See esp8266-app-config.h-sample).
  * Review #defines and variables at the top of this file.
  * 
  * This code assumes anonymous MQTT access. Change accordingly.
@@ -20,17 +20,14 @@
 #include <SoftwareSerial.h>
 
 // Review all of the values found here.
-// See local-config.h-sample
-#include "local-config.h"
+// See esp8266-app-config.h-sample
+#include "esp8266-app-config.h"
 
-// The pins to use (we're only actually using RX at this time)
-#define RX_PIN RX
-#define TX_PIN TX
-
+// Pin values defined in esp8266-app-config.h
 SoftwareSerial waterSerial(RX_PIN, TX_PIN);
 
 // Change the credentials below, so your ESP8266 connects to your router
-// Values in local-config.h
+// Values in esp8266-app-config.h
 const char *mqtt_server = MQTT_HOST;
 
 // Initializes the espClient. You should change the espClient

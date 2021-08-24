@@ -1,0 +1,24 @@
+// Moisture levels to start and stop watering
+#define WATER_START_VALUE 30
+#define WATER_STOP_VALUE 55
+
+// Depth of water reservoir
+#define MAX_WATER_DEPTH 304
+
+// Should stats be published to MQTT?
+// This assumes there is an ESP8266 connect to TX/RX
+// running an app that will publish when receiving
+// the data in the expected format.
+#undef SEND_STATS_MQTT
+
+// Output stats to Serial.
+#define SEND_STATS_LOCAL
+
+// Rougly how long in MS between publishing stats (20s)
+// Note it will also publish when a vavle or pump change state.
+#define SEND_STATS_FREQ_MS 20*1000
+
+// The value returned by the TOF sensors when a timout occurs
+// You probably don't want to change this unless you are using
+// a different sensor.
+#define WATER_LEVEL_TIMEOUT 65535

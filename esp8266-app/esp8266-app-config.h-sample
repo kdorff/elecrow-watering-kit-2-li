@@ -8,3 +8,5 @@
 #define MQTT_ERROR_TOPIC "home/watering-1/error"
 #define MQTT_DATA_TOPIC "home/watering-1/data"
 
+#define RX_PIN RX
+#define TX_PIN TX

@@ -14,37 +14,18 @@
 #include <RTClib.h>
 #include <VL53L0X.h>
 
+// Review all of the values found here.
+// (See watering-kit-config.h-sample)
+#include "watering-kit-config.h"
+
 U8G2_SH1106_128X64_NONAME_2_HW_I2C u8g2(U8G2_R0, /* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE);
 RTC_DS1307 RTC;
-
-// Moisture levels to start and stop watering
-#define WATER_START_VALUE 30
-#define WATER_STOP_VALUE 55
-
-// Depth of water reservoir
-#define MAX_WATER_DEPTH 304
-
-// Rougly how long in MS between publishing stats (20s)
-// Note it will also publish when a vavle or pump change state.
-#define SEND_STATS_FREQ_MS 20*1000
-
-// Should stats be published to MQTT?
-// This assumes there is an ESP8266 connect to TX/RX
-// running an app that will publish when receiving
-// the data in the expected format.
-#define SEND_STATS_MQTT
-
-// Output stats to Serial.
-#define SEND_STATS_LOCAL
 
 // Time (millis()) we last sent stats
 unsigned long send_stats_last = 0;
 
 // If we want to force sending stats on this iteration
 bool send_stats_force = false;
-
-// The value returned by the TOF sensors when a timout occurs
-#define WATER_LEVEL_TIMEOUT 65535
 
 // The number of sensors. If you want more, you will need
 // to many of the below arrays, too.
@@ -65,7 +46,7 @@ int moisture_pins[] = {A0, A1, A2, A3};
 // declare moisture values
 int moisture_values[] = {0, 0, 0, 0};
 
-// valve states    1:open   0:close
+//valve states    1:open   0:close
 int valve_state_flags[] = {0, 0, 0, 0};
 
 //pump state    1:open   0:close
@@ -76,6 +57,10 @@ bool water_level_enabled = false;
 VL53L0X water_level_sensor;
 uint16_t water_level_per = 0;
 uint16_t water_level_mm = 0;
+
+// Values to help improve the capacitive sensor accuracy.
+long moistureSensorFromLow = 590;
+long moistureSensorToHigh = 360;
 
 char days_of_the_week[7][12] = {
     "Sun",
@@ -169,7 +154,7 @@ void setup()
 #endif
 
   u8g2.begin();
-  // declare valve relay pins as output
+  // declare valve relays as output
   for (int i = 0; i < num_sensors; i++)
   {
     pinMode(valve_pins[i], OUTPUT);
@@ -243,6 +228,15 @@ void read_value()
   for (int i = 0; i < num_sensors; i++)
   {
     float value = analogRead(moisture_pins[i]);
+
+    if (value > moistureSensorFromLow) {
+      // Tune fromLow
+      moistureSensorFromLow = value;
+    }
+    if (value < moistureSensorToHigh) {
+      // Tune toHigh
+      moistureSensorToHigh = value;
+    }    
     moisture_values[i] = map(value, 590, 360, 0, 100);
     delay(20);
     if (moisture_values[i] < 0)
@@ -379,7 +373,6 @@ void send_stats()
   static char output_buffer[10];
   
 #ifdef SEND_STATS_MQTT
-  // This seems to keep the link alive. Hmmm.
   dtostrf(millisSinceLastRun, 9, 0, output_buffer);
   Serial1.print("#Millis since last run ");
   Serial1.print(millisSinceLastRun);
@@ -387,6 +380,7 @@ void send_stats()
 #endif
 
   if (millisSinceLastRun > SEND_STATS_FREQ_MS) {
+    // TODO: There is some issue that this isn't ever being triggered.
     send_stats_force = true;
   }
   if (send_stats_force)
@@ -461,11 +455,9 @@ void send_stats()
     // End the message.
 #ifdef SEND_STATS_MQTT
     Serial1.print("\n");
-    delay(100);
 #endif
 #ifdef SEND_STATS_LOCAL
     Serial.print("\n");
-    delay(50);
 #endif
   }
 }
@@ -489,6 +481,7 @@ void draw_stats()
   else
   {
     itoa(water_level_per, display_buffer, 10);
+    // itoa(water_level_mm, display_buffer, 10);
     u8g2.drawStr(x_offsets[2] + 16, 60, display_buffer);
   }
 
