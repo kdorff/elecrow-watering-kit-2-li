@@ -60,7 +60,7 @@ uint16_t water_level_mm = 0;
 
 // Values to help improve the capacitive sensor accuracy.
 long moistureSensorFromLow = 590;
-long moistureSensorToHigh = 360;
+long moistureSensorToHigh = 290;
 
 char days_of_the_week[7][12] = {
     "Sun",
