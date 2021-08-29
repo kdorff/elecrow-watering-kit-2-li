@@ -21,7 +21,7 @@ Changes to my code
 * My code assumes you have your Serial consoles set to 19200.
 
 Calibration
-* If you flash the moisture-calibratino firmware, you can
+* If you flash the moisture-calibration firmware, you can
   determine the "WET_VALUE" and "DRY_VALUE" for your sensors
   to make sure you are covering the complete range.
 * Run the app on the Elecrow hardware with the Moisture sensors
