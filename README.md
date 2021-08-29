@@ -20,6 +20,23 @@ Changes to my code
 * Code on the ESP8266 connects to a Local Mosquitto. From there you need to get the data wherever makes sense
 * My code assumes you have your Serial consoles set to 19200.
 
+Calibration
+* If you flash the moisture-calibratino firmware, you can
+  determine the "WET_VALUE" and "DRY_VALUE" for your sensors
+  to make sure you are covering the complete range.
+* Run the app on the Elecrow hardware with the Moisture sensors
+  (and optionally the ToF sensor installed).
+* For each moisture sensor observe minimum values for wet and
+  maximum values for dry. Adjust WET_VALUE and DRY_VALUE in
+  watering-kit-config.h accordingly.
+* If using the ToF sensor to check the depth of your
+  water reservoir, this will show you distance in
+  millimeters. Affix your sensor over your reservoir
+  and then get the reading from the Elecrow display. Adjust
+  MAX_WATER_DEPTH in watering-kit-config.h to a value LESS
+  than this (you don't want the water to actually reach the
+  sensor at "Full").
+
 Programming notes
 * I found programming this Leonardo to bit a bit of a pain.
 * On Windows, the Leonardo consumes two COM ports, let's say they are COM5 and COM6

@@ -59,8 +59,8 @@ uint16_t water_level_per = 0;
 uint16_t water_level_mm = 0;
 
 // Values to help improve the capacitive sensor accuracy.
-long moistureSensorFromLow = 590;
-long moistureSensorToHigh = 290;
+long mostDrySensorValue = DRY_VALUE;
+long mostWetSensorValue = WET_VALUE;
 
 char days_of_the_week[7][12] = {
     "Sun",
@@ -139,6 +139,8 @@ static const unsigned char bitmap_logo[] U8X8_PROGMEM = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0x1f, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
     0x07, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+static char output_buffer[10];
 
 void setup()
 {
@@ -229,20 +231,23 @@ void read_value()
   {
     float value = analogRead(moisture_pins[i]);
 
-    if (value > moistureSensorFromLow) {
-      // Tune fromLow
-      moistureSensorFromLow = value;
+    if (value > mostDrySensorValue) {
+      // Tune mostDrySensorValue max value
+      mostDrySensorValue = value;
     }
-    if (value < moistureSensorToHigh) {
-      // Tune toHigh
-      moistureSensorToHigh = value;
+    if (value < mostWetSensorValue) {
+      // Tune mostWetSensorValue max value
+      mostWetSensorValue = value;
     }    
-    moisture_values[i] = map(value, 590, 360, 0, 100);
-    delay(20);
+
+    // Conver mosisture readings to 0-100 percentage.
+    moisture_values[i] = map(value, 
+        mostDrySensorValue, mostWetSensorValue, 0, 100);
     if (moisture_values[i] < 0)
     {
       moisture_values[i] = 0;
     }
+    delay(20);
   }
 }
 
@@ -366,11 +371,45 @@ void check_water_level()
   }
 }
 
-void send_stats()
-{
+void send_stats_serial(Stream &port)
+{  
+  for (int i = 0; i < num_sensors; i++)
+  {
+    /*********Output Moisture Sensor values to ESP8266******/
+    dtostrf(moisture_values[i], 4, 0, output_buffer);
+    if (i != 0) {
+      port.print(",");
+    }
+    port.print(output_buffer);
+  }
+
+  dtostrf(pump_state_flag, 1, 0, output_buffer);
+  port.print(",");
+  port.print(output_buffer);
+
+  dtostrf(water_level_mm, 4, 0, output_buffer);
+  port.print(",");
+  port.print(output_buffer);
+
+  dtostrf(water_level_per, 4, 0, output_buffer);
+  port.print(",");
+  port.print(output_buffer);
+
+  for (int i = 0; i < num_sensors; i++)
+  {
+    /*********Output Moisture Sensor values to ESP8266******/
+    dtostrf(valve_state_flags[i], 1, 0, output_buffer);
+    port.print(",");
+    port.print(output_buffer);
+  }
+
+  // End the message.
+  port.print("\n");
+}
+
+void send_stats() {
   unsigned long now = millis();
   unsigned long millisSinceLastRun = now - send_stats_last;
-  static char output_buffer[10];
   
 #ifdef SEND_STATS_MQTT
   dtostrf(millisSinceLastRun, 9, 0, output_buffer);
@@ -387,77 +426,11 @@ void send_stats()
   {
     send_stats_last = now;
     send_stats_force = false;
-    Serial.println("Sendings stats\n");
-    
-
-    for (int i = 0; i < num_sensors; i++)
-    {
-      /*********Output Moisture Sensor values to ESP8266******/
-      dtostrf(moisture_values[i], 4, 0, output_buffer);
-#ifdef SEND_STATS_MQTT
-      if (i != 0) {
-        Serial1.print(",");
-      }
-      Serial1.print(output_buffer);
-#endif
 #ifdef SEND_STATS_LOCAL
-      if (i != 0) {
-        Serial.print(",");
-      }
-      Serial.print(output_buffer);
+    send_stats_serial(Serial);
 #endif
-    }
-
-    dtostrf(pump_state_flag, 1, 0, output_buffer);
 #ifdef SEND_STATS_MQTT
-    Serial1.print(",");
-    Serial1.print(output_buffer);
-#endif
-#ifdef SEND_STATS_LOCAL
-    Serial.print(",");
-    Serial.print(output_buffer);
-#endif
-
-    dtostrf(water_level_mm, 4, 0, output_buffer);
-#ifdef SEND_STATS_MQTT
-    Serial1.print(",");
-    Serial1.print(output_buffer);
-#endif
-#ifdef SEND_STATS_LOCAL
-    Serial.print(",");
-    Serial.print(output_buffer);
-#endif
-
-    dtostrf(water_level_per, 4, 0, output_buffer);
-#ifdef SEND_STATS_MQTT
-    Serial1.print(",");
-    Serial1.print(output_buffer);
-#endif
-#ifdef SEND_STATS_LOCAL
-    Serial.print(",");
-    Serial.print(output_buffer);
-#endif
-
-    for (int i = 0; i < num_sensors; i++)
-    {
-      /*********Output Moisture Sensor values to ESP8266******/
-      dtostrf(valve_state_flags[i], 1, 0, output_buffer);
-#ifdef SEND_STATS_MQTT
-      Serial1.print(",");
-      Serial1.print(output_buffer);
-#endif
-#ifdef SEND_STATS_LOCAL
-      Serial.print(",");
-      Serial.print(output_buffer);
-#endif
-    }
-
-    // End the message.
-#ifdef SEND_STATS_MQTT
-    Serial1.print("\n");
-#endif
-#ifdef SEND_STATS_LOCAL
-    Serial.print("\n");
+    send_stats_serial(Serial1);
 #endif
   }
 }
