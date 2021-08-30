@@ -120,7 +120,7 @@ My dashboard looks like
 
 ## Calibration ##
 
-* If you flash the moisture-calibration firmware, you can
+* If you flash the `moisture-calibration` firmware, you can
   determine the `WET_VALUE` and `DRY_VALUE` for your sensors
   to make sure you are covering the complete range.
 * Run the app on the Elecrow hardware with the Moisture sensors
@@ -138,20 +138,25 @@ My dashboard looks like
 
 ## Programming notes on Windows ##
 
-* I found programming this Leonardo to bit a bit of a pain.
-* On Windows, the Leonardo consumes two COM ports, let's say they are COM5 and COM6
-* COM5 is for the Serial Monitor, when running a program. 
-* COM6 is for programming.
-* To program, my recommendation
-  * Make sure `Show Verbose Output on Upload` is selected. This is helpful!!
-  * Click `Verify`
-  * Make sure COM6 is selected (if not listed, press and hold the RESET button on the Elecrow)
+* I found programming this Leonardo to bit a bit of a pain on Windows.
+* On Windows, the Leonardo consumes two COM ports, 
+  let's say they are COM5 and COM6. Below I'll call these
+  `COMn` and `COMn+1`
+* `COMn` is for the Serial Monitor, when running a program. 
+* `COMn+1` is for programming.
+* Within the Arudino app's `Preferences`, make sure 
+  `Show Verbose Output on Upload` is selected.
+* To program
+  * Plug in the Elecrow board via USB
+  * Make sure `COMn+1` is selected (if not listed, press and hold the RESET button on the Elecrow)
+  * Click `Verify` to compile the application
   * Click and hold the reset button
     * Click `Send`
     * Wait for the build to ALMOST finish and let go of RESET
     * When you start getting messages listing all of the COM ports, press RESET again (don't hold)
     * Programming should start (and complete)
-* To view the Serial console, first switch to COM5 (re-open the Serial Monitor, if necessary)
+* To view the Serial console, switch to `COMn` 
+  (re-open the Serial Monitor, if necessary)
 
 ## Acknowledgements ##
 
