@@ -5,21 +5,58 @@ from [Amazon](https://www.amazon.com/Elecrow-Watering-Moisture-Gardening-Automat
 The controller board for this kit has an integrated
 Arduino Leonardo.
 
-The included firmware (and the firmware found on the Elecrow site) has issues, notably graphical gitches. I've included a copy of the Elecrow code in the `orig/` folder for comparison purposes.
+This kit was a great starting point but I've since made numerous
+changes from the original code.
 
-I found a [version of the firmware](https://github.com/liutyi/elecrow-watering-kit-2-li)
-modified by [liutyi](https://wiki.liutyi.info/display/ARDUINO/Arduino+Automatic+Smart+Plant+Watering+Kit+2.0a) 
-that fixed these gitches. 
+## Waterproofing ##
 
+I intended to use this kit outside. To that end, I knew I'd
+have to waterproof the electronics (I placed them in a plastic
+box that had a nice seal on the lid and made small holes for the
+cables). I used a similar box for the pump and vavle block.
+
+I quickly discovered the Moisture Probes would need to be
+insulated / sealed. I used a piece of 
+[3/4" heat shrink tubing](https://www.amazon.com/gp/product/B07MF826Q6) 
+along with a piece of 
+[1/2" heat shrink tubing](https://www.amazon.com/gp/product/B07HT58WPR)
+to enclose the electronics and connector on the
+probe. I used a heat gun to shrink the tubing.
+
+I then used 
+[Liquid Electrical Tape](https://www.amazon.com/Star-brite-Liquid-Electrical-Tape/dp/B0000AXNOD)
+to seal the ends of the heat shrink tubing to provide 
+additional water protection.
+
+## Water Connections ##
+
+I found the water connections to the Pump and Vavle
+Block had a tendency of separating. I used some E6000
+to glue the connections into places.
 
 ## Changes to my code ##
+
 * Formatting and variable names made more consistent
 * This supports the VL53L0X Time-of-Flight (ToF) Laser Ranging Sensor I2C IIC module.
 * Sensor data is sent over TX to an ESP8266 (if available) running the `esp8266-app/esp8266-app.ino`. I use a D1 Mini (clone) for this
-* The ESP8266 I connect VCC and GND from ... and I connect RX on the Elecrow (which is mis-labeled) to RX on the D1 Mini.
-* This will preclude you from using the Serial monitor on the D1 Mini. I do not think there is a way around this. Since I am using the RX pin, I do not believe you need to use a level shifter (since it has a resistor in-place).
-* Code on the ESP8266 connects to a Local Mosquitto. From there you need to get the data wherever makes sense
-* My code assumes you have your Serial consoles set to 19200.
+* The ESP8266 obtains VCC and GND from port that contains `MOSI` and `MISO`.
+* The ESP8266 `RX` pin is connected to the Elecrow's `RX` pin (which is
+  actually `TX`, but seems to be mis-labeled).
+  * This will preclude you from using the Serial monitor on the ESP8266.
+    I do not think there is a way around this. 
+  * Since I am using the ESP8266 RX pin, I do not believe you need to 
+    use a level shifter (since it has a resistor in-place). If you
+    are squeemish, you might with to use a 3.3V/5V level shifter
+    here such as the `74AHCT125`.
+* Code on the ESP8266 connects to a local Mosquitto broker. 
+  From there you can get the data to wherever makes sense. I'm
+  using Node-RED to migrate the data to InfluxDB which I can then
+  visualize using Grafana.
+* Added a `moisture-calibration` app to help calibrate the values
+  coming from the moisture sensors.
+* MINOR Auto-calibration of the moisture sensors, but you should still
+  run `mosisture-calibration` app to get the absolute `wet` and `dry`
+  values for your sensors.
 
 ## Monitoring with MQTT, Node-RED, InfluxDB, and Grafana ##
 
@@ -110,3 +147,23 @@ I may expand this in the future.
     * When you start getting messages listing all of the COM ports, press RESET again (don't hold)
     * Programming should start (and complete)
 * To view the Serial console, first switch to COM5 (re-open the Serial Monitor, if necessary)
+
+## Acknowledgements ##
+
+I've included a copy of the Elecrow code in the `orig/` folder for comparison purposes. The firmware that was provided by Elecrow has several
+issues, not the least of which are  graphical gitches on the display.
+
+I found a [version of the firmware](https://github.com/liutyi/elecrow-watering-kit-2-li)
+modified by [liutyi](https://wiki.liutyi.info/display/ARDUINO/Arduino+Automatic+Smart+Plant+Watering+Kit+2.0a) 
+that fixed these gitches. 
+
+My code started it's life based on liutyi's
+modifications but have since undergone significant changes.
+
+Additional ideas and code were borrowed from 
+[rfrancis97](https://github.com/rfrancis97/elecrow-watering-kit-to-ESP8266)
+to use an ESP8266 (or ESP32) to publish stats to an MQTT broker.
+rfrancis97 also implemented a way to measure water level using an
+an Ultrasonic sensor (HC-SR04). I liked this idea but decided to
+use a VL53L0X Time-of-Flight (ToF) Laser Ranging Sensor I2C IIC module,
+instead.
