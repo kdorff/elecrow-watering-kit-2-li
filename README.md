@@ -11,7 +11,8 @@ I found a [version of the firmware](https://github.com/liutyi/elecrow-watering-k
 modified by [liutyi](https://wiki.liutyi.info/display/ARDUINO/Arduino+Automatic+Smart+Plant+Watering+Kit+2.0a) 
 that fixed these gitches. 
 
-Changes to my code
+
+## Changes to my code ##
 * Formatting and variable names made more consistent
 * This supports the VL53L0X Time-of-Flight (ToF) Laser Ranging Sensor I2C IIC module.
 * Sensor data is sent over TX to an ESP8266 (if available) running the `esp8266-app/esp8266-app.ino`. I use a D1 Mini (clone) for this
@@ -20,34 +21,91 @@ Changes to my code
 * Code on the ESP8266 connects to a Local Mosquitto. From there you need to get the data wherever makes sense
 * My code assumes you have your Serial consoles set to 19200.
 
-Calibration
+## Monitoring with MQTT, Node-RED, InfluxDB, and Grafana ##
+
+### Data to MQTT ###
+* Assuming the `esp82660-app` is be receiving stats from the
+  Elecrow watering kit and can connect to the MQTT broker,
+  will publish stats to a topic. The topic I publish to is
+  `home/watering-1/data`.
+* I use the IOTStack project to run MQTT, Node-RED, 
+  InfluxDB, and Grafana. I run on the stack on a Raspberry 
+  Pi that uses an M.2 SSD over USB for all storage for 
+  increased speed and reliability vs using an SD card.
+
+### Node-RED move the data from MQTT to Influx DB ###
+
+I use a very simple Flow in Node-Red to move my data
+from MQTT to InfluxB.
+
+* Node 1 `mqtt in`.  This connects to your Mosquitto
+  broker and subscribes to the `Topic` `home/watering-1/data`.
+* Node 2 `function node`. The input comes from Node 1.
+  The purpose of this function is to take the CSV data from
+  MQTT and convert it into a JSON object. This function
+  contains the code
+
+```
+const data = msg.payload.split(",");
+msg.payload = {
+    'moisture-0' : parseInt(data[0]),
+    'moisture-1' : parseInt(data[1]),
+    'moisture-2' : parseInt(data[2]),
+    'moisture-3' : parseInt(data[3]),
+    'pump-0' : parseInt(data[4]),
+    'water-level-0' : parseInt(data[5]),
+    'water-level-per-0' : parseInt(data[6]),
+    'valve-0' : parseInt(data[7]),
+    'valve-1' : parseInt(data[8]),
+    'valve-2' : parseInt(data[9]),
+    'valve-3' : parseInt(data[10])
+};
+return msg;
+```
+
+* Node 3 `influxdb out`. The input comes from Node 2. This 
+  connects to your InfluxDB database. 
+  I output to a `measurement` `home/watering-1`.
+* Node 4 `debug`. The input also comes from Node 2. I find
+  this helpful to view the data as it comes from MQTT
+  and gets converted to JSON.
+
+## Displaying Stats ##
+
+Find a simple Grafana tutuorial and make charts from the
+data that is now in your InfluxDB within `home/watering-1`. 
+I may expand this in the future.
+
+## Calibration ##
+
 * If you flash the moisture-calibration firmware, you can
-  determine the "WET_VALUE" and "DRY_VALUE" for your sensors
+  determine the `WET_VALUE` and `DRY_VALUE` for your sensors
   to make sure you are covering the complete range.
 * Run the app on the Elecrow hardware with the Moisture sensors
   (and optionally the ToF sensor installed).
 * For each moisture sensor observe minimum values for wet and
-  maximum values for dry. Adjust WET_VALUE and DRY_VALUE in
-  watering-kit-config.h accordingly.
+  maximum values for dry. Adjust `WET_VALUE` and `DRY_VALUE` in
+  `watering-kit-config.h` accordingly.
 * If using the ToF sensor to check the depth of your
   water reservoir, this will show you distance in
   millimeters. Affix your sensor over your reservoir
   and then get the reading from the Elecrow display. Adjust
-  MAX_WATER_DEPTH in watering-kit-config.h to a value LESS
+  `MAX_WATER_DEPTH` in `watering-kit-config.h` to a value LESS
   than this (you don't want the water to actually reach the
   sensor at "Full").
 
-Programming notes
+## Programming notes on Windows ##
+
 * I found programming this Leonardo to bit a bit of a pain.
 * On Windows, the Leonardo consumes two COM ports, let's say they are COM5 and COM6
 * COM5 is for the Serial Monitor, when running a program. 
 * COM6 is for programming.
 * To program, my recommendation
-  * Make sure Show Verbose Output on "Upload" is selected. This is helpful!!
-  * Click "Compile"
+  * Make sure `Show Verbose Output on Upload` is selected. This is helpful!!
+  * Click `Verify`
   * Make sure COM6 is selected (if not listed, press and hold the RESET button on the Elecrow)
   * Click and hold the reset button
-    * Click "Send"
+    * Click `Send`
     * Wait for the build to ALMOST finish and let go of RESET
     * When you start getting messages listing all of the COM ports, press RESET again (don't hold)
     * Programming should start (and complete)
