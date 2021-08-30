@@ -37,7 +37,7 @@ to glue the connections into places.
 ## Changes to my code ##
 
 * Formatting and variable names made more consistent
-* This supports the VL53L0X Time-of-Flight (ToF) Laser Ranging Sensor I2C IIC module.
+* This supports the VL53L0X Time-of-Flight (ToF) Laser Ranging Sensor I2C IIC module. I connected this to the `IIC` port on the Elecrow board.
 * Sensor data is sent over TX to an ESP8266 (if available) running the `esp8266-app/esp8266-app.ino`. I use a D1 Mini (clone) for this
 * The ESP8266 obtains VCC and GND from port that contains `MOSI` and `MISO`.
 * The ESP8266 `RX` pin is connected to the Elecrow's `RX` pin (which is
@@ -112,6 +112,11 @@ return msg;
 Find a simple Grafana tutuorial and make charts from the
 data that is now in your InfluxDB within `home/watering-1`. 
 I may expand this in the future.
+
+My dashboard looks like
+
+![Grafana Dashboard](https://i.imgur.com/UXkHqkI.png)
+
 
 ## Calibration ##
 
