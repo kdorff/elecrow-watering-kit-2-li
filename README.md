@@ -148,12 +148,13 @@ My dashboard looks like
   `Show Verbose Output on Upload` is selected.
 * To program
   * Plug in the Elecrow board via USB
-  * Make sure `COMn+1` is selected (if not listed, press and hold the RESET button on the Elecrow)
+  * Make sure `COMn+1` is selected (if not listed, press and hold the `Reset` button on the Elecrow)
   * Click `Verify` to compile the application
-  * Click and hold the reset button
+  * Press and hold the `Reset` button
     * Click `Send`
-    * Wait for the build to ALMOST finish and let go of RESET
-    * When you start getting messages listing all of the COM ports, press RESET again (don't hold)
+    * Wait for the build to ALMOST finish and let go of the `Reset` button
+    * When you start getting messages listing all of the COM ports, press 
+      `Reset` again (don't hold)
     * Programming should start (and complete)
 * To view the Serial console, switch to `COMn` 
   (re-open the Serial Monitor, if necessary)
