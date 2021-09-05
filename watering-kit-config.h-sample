@@ -1,6 +1,7 @@
 // Moisture levels to start and stop watering
-#define WATER_START_VALUE 30
-#define WATER_STOP_VALUE 55
+// Stock was 30, 55. This seems dry to me
+#define WATER_START_VALUE 50
+#define WATER_STOP_VALUE 75
 
 // Depth of water reservoir
 #define MAX_WATER_DEPTH 304

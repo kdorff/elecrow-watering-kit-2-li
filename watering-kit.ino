@@ -258,8 +258,11 @@ void water_flower()
     if (moisture_values[i] < WATER_START_VALUE)
     {
       digitalWrite(valve_pins[i], HIGH);
-      valve_state_flags[i] = 1;
-      send_stats_force = true;
+      if (valve_state_flags[i] != 1) 
+      {
+        valve_state_flags[i] = 1;
+        send_stats_force = true;
+      }
       delay(50);
       if (pump_state_flag == 0)
       {
@@ -270,13 +273,14 @@ void water_flower()
     }
     else if (moisture_values[i] > WATER_STOP_VALUE)
     {
-      if (valve_state_flags[i] == 1) {
+      if (valve_state_flags[i] != 0) 
+      {
         // Only report if it IS on
         send_stats_force = true;
+        valve_state_flags[i] = 0;
       }
       // Force it off
       digitalWrite(valve_pins[i], LOW);
-      valve_state_flags[i] = 0;
       delay(50);
     }
   }

@@ -26,10 +26,6 @@
 // Pin values defined in esp8266-app-config.h
 SoftwareSerial waterSerial(RX_PIN, TX_PIN);
 
-// Change the credentials below, so your ESP8266 connects to your router
-// Values in esp8266-app-config.h
-const char *mqtt_server = MQTT_HOST;
-
 // Initializes the espClient. You should change the espClient
 // name if you have multiple ESPs running in your home automation system
 WiFiClient espwateringClient;
@@ -58,7 +54,7 @@ void reconnect()
     while (!client.connected())
     {
         // Attempt to connect
-        if (client.connect(MQTT_CLIENT_NAME))
+        if (client.connect(MQTT_CLIENT_NAME, MQTT_USERNAME, MQTT_PASSWORD))
         {
             client.publish(MQTT_ONLINE_TOPIC, "1");
         }
@@ -94,7 +90,7 @@ void loop()
 
     if (!client.loop())
     {
-        client.connect(MQTT_CLIENT_NAME);
+        client.connect(MQTT_CLIENT_NAME, MQTT_USERNAME, MQTT_PASSWORD);
         client.publish(MQTT_ONLINE_TOPIC, "2");
     }
 
