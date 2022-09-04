@@ -59,8 +59,8 @@ uint16_t water_level_per = 0;
 uint16_t water_level_mm = 0;
 
 // Values to help improve the capacitive sensor accuracy.
-long mostDrySensorValue = DRY_VALUE;
-long mostWetSensorValue = WET_VALUE;
+long mostDrySensorValue[] = DRY_VALUES
+long mostWetSensorValue[] = WET_VALUES
 
 char days_of_the_week[7][12] = {
     "Sun",
@@ -231,18 +231,18 @@ void read_value()
   {
     float value = analogRead(moisture_pins[i]);
 
-    if (value > mostDrySensorValue) {
-      // Tune mostDrySensorValue max value
-      mostDrySensorValue = value;
+    if (value > mostDrySensorValue[i]) {
+      // Tune mostDrySensorValue[i] max value
+      mostDrySensorValue[i] = value;
     }
-    if (value < mostWetSensorValue) {
-      // Tune mostWetSensorValue max value
-      mostWetSensorValue = value;
+    if (value < mostWetSensorValue[i]) {
+      // Tune mostWetSensorValue[i] max value
+      mostWetSensorValue[i] = value;
     }    
 
     // Conver mosisture readings to 0-100 percentage.
     moisture_values[i] = map(value, 
-        mostDrySensorValue, mostWetSensorValue, 0, 100);
+        mostDrySensorValue[i], mostWetSensorValue[i], 0, 100);
     if (moisture_values[i] < 0)
     {
       moisture_values[i] = 0;
