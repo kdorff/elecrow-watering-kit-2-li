@@ -10,8 +10,8 @@
 // or use the "moisture-calibration" app
 // to determine wet and dry values for your
 // moisture sensors
-#define WET_VALUE 290
-#define DRY_VALUE 590
+#define WET_VALUES {290, 290, 290, 290};
+#define DRY_VALUES {590, 590, 590, 590};
 
 // Should stats be published to MQTT?
 // This assumes there is an ESP8266 connect to TX/RX
