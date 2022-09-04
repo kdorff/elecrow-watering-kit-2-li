@@ -44,6 +44,8 @@ int moisture_pins[] = {A0, A1, A2, A3};
 
 // declare moisture values
 int moisture_values[] = {0, 0, 0, 0};
+int moisture_values_max[] = {0, 0, 0, 0};
+int moisture_values_min[] = {32767, 32767, 32767, 32767};
 
 // Water level
 bool water_level_enabled = false;
@@ -101,6 +103,9 @@ void read_value()
     float value = analogRead(moisture_pins[i]);
     // Keep the int portion, no need for the decimal portion
     moisture_values[i] = value;
+    moisture_values_max[i] = max(moisture_values[i], moisture_values_max[i]);
+    moisture_values_min[i] = min(moisture_values[i], moisture_values_min[i]);
+    
     delay(20);
   }
 }
@@ -136,5 +141,11 @@ void draw_stats()
   {
     itoa(moisture_values[i], display_buffer, 10);
     u8g2.drawStr(x_offsets[i] + 2, 45, display_buffer);
+    
+    itoa(moisture_values_min[i], display_buffer, 10);
+    u8g2.drawStr(x_offsets[i] + 2, 30, display_buffer);
+    
+    itoa(moisture_values_max[i], display_buffer, 10);
+    u8g2.drawStr(x_offsets[i] + 2, 15, display_buffer);
   }
 }
